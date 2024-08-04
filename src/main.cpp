@@ -2,9 +2,9 @@
 #include "config.h"
 #include "debug.h"
 #include <sml/sml_file.h>
+#include "sml_processor.h"
 #include "Sensor.h"
 #include <IotWebConf.h>
-#include "MqttPublisher.h"
 #include "EEPROM.h"
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -20,17 +20,7 @@ WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
 WiFiClient net;
 
-MqttConfig mqttConfig;
-MqttPublisher publisher;
-
 IotWebConf iotWebConf(WIFI_AP_SSID, &dnsServer, &server, WIFI_AP_DEFAULT_PASSWORD, CONFIG_VERSION);
-
-iotwebconf::TextParameter mqttServerParam = iotwebconf::TextParameter("MQTT server", "mqttServer", mqttConfig.server, sizeof(mqttConfig.server), nullptr, mqttConfig.server);
-iotwebconf::NumberParameter mqttPortParam = iotwebconf::NumberParameter("MQTT port", "mqttPort", mqttConfig.port, sizeof(mqttConfig.port), nullptr, mqttConfig.port);
-iotwebconf::TextParameter mqttUsernameParam = iotwebconf::TextParameter("MQTT username", "mqttUsername", mqttConfig.username, sizeof(mqttConfig.username), nullptr, mqttConfig.username);
-iotwebconf::PasswordParameter mqttPasswordParam = iotwebconf::PasswordParameter("MQTT password", "mqttPassword", mqttConfig.password, sizeof(mqttConfig.password), nullptr, mqttConfig.password);
-iotwebconf::TextParameter mqttTopicParam = iotwebconf::TextParameter("MQTT topic", "mqttTopic", mqttConfig.topic, sizeof(mqttConfig.topic), nullptr, mqttConfig.topic);
-iotwebconf::ParameterGroup paramGroup = iotwebconf::ParameterGroup("MQTT Settings", "");
 
 boolean needReset = false;
 
@@ -72,24 +62,15 @@ void setup()
 	}
 	DEBUG("Sensor setup done.");
 
-	// Initialize publisher
 	// Setup WiFi and config stuff
 	DEBUG("Setting up WiFi and config stuff.");
-
-	paramGroup.addItem(&mqttServerParam);
-	paramGroup.addItem(&mqttPortParam);
-	paramGroup.addItem(&mqttUsernameParam);
-	paramGroup.addItem(&mqttPasswordParam);
-	paramGroup.addItem(&mqttTopicParam);
-
-	iotWebConf.addParameterGroup(&paramGroup);
 
 	iotWebConf.setConfigSavedCallback(&configSaved);
 	iotWebConf.setWifiConnectionCallback(&wifiConnected);
 
 
 	WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event) {
-      publisher.disconnect();
+      // TODO: Activate warning LED
     });
 
 	// -- Define how to handle updateServer calls.
@@ -102,12 +83,7 @@ void setup()
 	boolean validConfig = iotWebConf.init();
 	if (!validConfig)
 	{
-		DEBUG("Missing or invalid config. MQTT publisher disabled.");
-	}
-	else
-	{
-		// Setup MQTT publisher
-		publisher.setup(mqttConfig);
+		DEBUG("Missing or invalid config.");
 	}
 
 	server.on("/", []() { iotWebConf.handleConfig(); });
@@ -144,5 +120,4 @@ void configSaved()
 void wifiConnected()
 {
 	DEBUG("WiFi connection established.");
-	publisher.connect();
 }
