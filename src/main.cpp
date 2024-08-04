@@ -34,6 +34,11 @@ iotwebconf::ParameterGroup paramGroup = iotwebconf::ParameterGroup("MQTT Setting
 
 boolean needReset = false;
 
+void obis_callback(String identifier, String value)
+{
+	Serial.println(identifier + ": " + value);
+}
+
 void process_message(byte *buffer, size_t len, Sensor *sensor)
 {
 	// Parse
@@ -41,7 +46,7 @@ void process_message(byte *buffer, size_t len, Sensor *sensor)
 
 	DEBUG_SML_FILE(file);
 
-	publisher.publish(sensor, file);
+	sml_processor::extract_obis(true, file, obis_callback);
 
 	// free the malloc'd memory
 	sml_file_free(file);
